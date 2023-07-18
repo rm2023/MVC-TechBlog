@@ -1,46 +1,33 @@
-const express = require('express');
-const routes = require('./controllers');
-const sequelize = require('./config/connection');
-const path = require('path');
-
-const helpers = require('./utils/helpers');
-
-const exphbs = require('express-handlebars');
-const hbs = exphbs.create({ helpers });
-
-const session = require('express-session');
-
-const app = express();
+const express = require("express");
+const path = require("path");
+const mongoose = require("mongoose");
+const routes = require("./routes");
 const PORT = process.env.PORT || 3001;
+const app = express();
 
-const SequelizeStore = require('connect-session-sequelize')(session.Store);
-
-const sess = {
-  secret: 'bigbluedog',
-  cookie: {
-        // Session will automatically expire in 10 minutes
-        expires: 10 * 60 * 1000
-  },
-  resave: true,
-  rolling: true,
-  saveUninitialized: true,
-  store: new SequelizeStore({
-    db: sequelize
-  }),
-};
-
-app.use(session(sess));
-
-app.use(express.json());
+// Define middleware here
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
+// Serve up static assets (usually on heroku)
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static("client/build"));
+}
 
-app.engine('handlebars', hbs.engine);
-app.set('view engine', 'handlebars');
+//Connect to the Mogno DB
+mongoose.connect(process.env.MONGODB_URI || "mongodb://localhost/googlebooks", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+});
 
+// Define API routes here
 app.use(routes);
 
-// turn on connection to db and server
-sequelize.sync({ force: false }).then(() => {
-  app.listen(PORT, () => console.log('Now listening'));
+// Send every other request to the React app
+// Define any API routes before this runs
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "./client/build/index.html"));
+});
+
+app.listen(PORT, () => {
+  console.log(`🌎 ==> API server now on port ${PORT}!`);
 });
